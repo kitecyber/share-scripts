@@ -1,12 +1,8 @@
 #!/bin/sh
 set -e
 
-WORK_DIR=$(mktemp -d)
-
-cleanup() {
-  rm -rf "$WORK_DIR"
-}
-trap cleanup EXIT
+WORK_DIR="$HOME/Downloads/kitecyber-install"
+mkdir -p "$WORK_DIR"
 
 # Detect Ubuntu version
 if [ ! -f /etc/os-release ]; then
@@ -55,14 +51,33 @@ curl -fsSL "$DOWNLOAD_URL" -o "$WORK_DIR/$FILE_NAME"
 echo "Extracting..."
 tar -xzf "$WORK_DIR/$FILE_NAME" -C "$WORK_DIR"
 
-INSTALL_SCRIPT=$(find "$WORK_DIR" -name "install.sh" -type f | head -1)
+# Find the extracted folder
+EXTRACT_DIR=$(find "$WORK_DIR" -mindepth 1 -maxdepth 1 -type d | head -1)
 
-if [ -z "$INSTALL_SCRIPT" ]; then
-  echo "Error: install.sh not found in archive" >&2
+if [ -z "$EXTRACT_DIR" ]; then
+  echo "Error: No extracted folder found" >&2
   exit 1
 fi
 
-chmod +x "$INSTALL_SCRIPT"
+echo "Extracted to: $EXTRACT_DIR"
 
-echo "Running installer (requires sudo)..."
-sudo "$INSTALL_SCRIPT"
+# Verify .deb file is present
+DEB_FILE=$(find "$EXTRACT_DIR" -name "*.deb" -type f | head -1)
+
+if [ -z "$DEB_FILE" ]; then
+  echo "Error: No .deb file found in $EXTRACT_DIR" >&2
+  exit 1
+fi
+
+echo "Found package: $(basename "$DEB_FILE")"
+
+if [ ! -f "$EXTRACT_DIR/install.sh" ]; then
+  echo "Error: install.sh not found in $EXTRACT_DIR" >&2
+  exit 1
+fi
+
+chmod +x "$EXTRACT_DIR/install.sh"
+
+echo "Running installer..."
+cd "$EXTRACT_DIR"
+sudo bash install.sh
